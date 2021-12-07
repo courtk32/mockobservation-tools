@@ -5,7 +5,7 @@
 import numpy as np
 import pandas as pd
 import h5py 
-
+import astropy
 import copy
 
 #from firestudio.utils.stellar_utils.colors_sps import lum_mag_conversions
