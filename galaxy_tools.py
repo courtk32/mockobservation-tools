@@ -7,6 +7,7 @@ import pandas as pd
 import h5py 
 import astropy
 import copy
+import glob
 
 #from firestudio.utils.stellar_utils.colors_sps import lum_mag_conversions
 from firestudio.utils.stellar_utils.load_stellar_hsml import get_particle_hsml
@@ -32,10 +33,11 @@ def load_sim(pathtofolder, nfiles, snapshot):
                      "hsml":np.array([]), "ParticleIDs":np.array([]),
                      "StellarFormationTime":np.array([]), "StellarAge":np.array([])}
 
+    snap_files = glob.glob(pathtofolder +'*.hdf5')
+
     #...Loop through each snap file
-    for i in range(nfiles):
-        snappath = pathtofolder + 'snapshot_' + str(snapshot).zfill(3) + '.' + str(i) + '.hdf5'
-        f = h5py.File(snappath, 'r')
+    for i in snap_files:
+        f = h5py.File(i, 'r')
 
         h = f['Header'].attrs['HubbleParam'] 
         z_snap = f['Header'].attrs['Redshift']
@@ -79,13 +81,12 @@ def load_halo(pathtofolder, nfiles, host=True):
     '''
     Assume file name format: halos_0.0.ascii
     '''
-    pathtodata = pathtofolder + 'halos_0.0.ascii'
-    halo = pd.read_csv(pathtodata, skiprows=np.arange(1,20),sep=' ')
-
-    for i in range(1,nfiles):
-        pathtodata = pathtofolder + 'halos_0.'+ str(i)+'.ascii'
-        halo_hold = pd.read_csv(pathtodata, skiprows=np.arange(1,20),sep=' ')
-        halo = halo.append(halo_hold)
+    halo_files = glob.glob(pathtofolder +'*.ascii')
+    halo = pd.read_csv(halo_files[0], skiprows=np.arange(1,20),sep=' ')
+    if len(halo_files) > 1:
+        for i in halo_files[1:]:
+            halo_hold = pd.read_csv(i, skiprows=np.arange(1,20),sep=' ')
+            halo = halo.append(halo_hold)
     
 
     halo = halo[['#id', 'x','y','z', 'mvir', 'Halfmass_Radius','mbound_vir', 'rvir']]    
@@ -117,20 +118,26 @@ def mask_sim_to_halo(pathtofolder, nfiles, snapshot, star_snapdict=None, gas_sna
     star_snapdict['y'] = star_snapdict['y'] - host_halo['y'].values[0]
     star_snapdict['z'] = star_snapdict['z'] - host_halo['z'].values[0]
     star_snapdict['r'] = (star_snapdict['x']**2 + star_snapdict['y']**2 + star_snapdict['z']**2) ** 0.5
+    star_snapdict['r_xy'] = (star_snapdict['x']**2 + star_snapdict['y']**2) ** 0.5
+    star_snapdict['r_yz'] = (star_snapdict['y']**2 + star_snapdict['z']**2) ** 0.5
+    star_snapdict['r_zx'] = (star_snapdict['x']**2 + star_snapdict['z']**2) ** 0.5
 
     gas_snapdict['x'] = gas_snapdict['x'] - host_halo['x'].values[0]
     gas_snapdict['y'] = gas_snapdict['y'] - host_halo['y'].values[0]
     gas_snapdict['z'] = gas_snapdict['z'] - host_halo['z'].values[0]
     gas_snapdict['r'] = (gas_snapdict['x']**2 + gas_snapdict['y']**2 + gas_snapdict['z']**2) ** 0.5
+    gas_snapdict['r_xy'] = (gas_snapdict['x']**2 + gas_snapdict['y']**2) ** 0.5
+    gas_snapdict['r_yz'] = (gas_snapdict['y']**2 + gas_snapdict['z']**2) ** 0.5
+    gas_snapdict['r_zx'] = (gas_snapdict['x']**2 + gas_snapdict['z']**2) ** 0.5
     
     if lim is True:
         mask_star = star_snapdict['r'] < host_halo['Halfmass_Radius'].values[0]
         mask_gas = gas_snapdict['r'] < host_halo['Halfmass_Radius'].values[0]
         
-        for key in ['x','y','z','r','Masses','Metallicity','ParticleIDs','StellarFormationTime','StellarAge']:
+        for key in ['x','y','z','r','r_xy','r_yz','r_zx','Masses','Metallicity','ParticleIDs','StellarFormationTime', 'StellarAge']:
             star_snapdict[key] = star_snapdict[key][mask_star]
         
-        for key in ['x','y','z','r','Masses','Metallicity','ParticleIDs','hsml']:
+        for key in ['x','y','z','r','r_xy','r_yz','r_zx','Masses','Metallicity','ParticleIDs','hsml']:
             gas_snapdict[key] = gas_snapdict[key][mask_gas]
 
         return star_snapdict, gas_snapdict, host_halo
@@ -141,20 +148,26 @@ def mask_sim_to_halo(pathtofolder, nfiles, snapshot, star_snapdict=None, gas_sna
 
 
 
-def radius_mass_in_percent_mass(star_snapdict,percent,sort='r'):
+def radius_mass_in_limit(star_snapdict,limits,rtype='r',fraction=None):
     
-    sort_index = np.argsort(star_snapdict[sort])
-    radius = star_snapdict['r'][sort_index]
+    sort_index = np.argsort(star_snapdict[rtype])
+    radius = star_snapdict[rtype][sort_index]
     mass = star_snapdict['Masses'][sort_index]
     
     mass_cum = np.cumsum(mass)
     mass_tot = mass_cum[-1]
+    rad_tot = radius[-1]
 
     mass_measure = []
     radius_measure = []
     
-    for i in percent:
-        mask = mass_cum < mass_tot * i
+    for i in limits:
+        if fraction is 'mass':
+            mask = mass_cum <= mass_tot * i
+        elif fraction is 'radius':
+            mask = radius <= rad_tot * i
+        else:
+            mask = radius <= i
         
         m = mass_cum[mask][-1]
         mass_measure.append(m)
