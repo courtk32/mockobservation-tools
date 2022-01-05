@@ -21,7 +21,30 @@ from general_tools import center_mass,lum_to_mag_SB
 
 
 
-def load_sim(pathtofolder, nfiles, snapshot):
+def load_sim(pathtofolder, snapshot):
+    '''
+    Loads one snap shot of the FIRE Simulations
+    
+    Parameters
+    ----------
+    pathtofolder: str, path to the snapshot simulation directory, ex snapdir_600/
+    nfiles:       int, number of files in the snapdir
+    snapshot:     int, which snapshot you are loading
+    
+    Returns
+    -------
+    gas_snapdict: h,a,x,y,z,Masses,Metallicity,hsml,ParticleIDs
+    star_snapdict:h,a,x,y,z,Masses,Metallicity,hsml,ParticleIDs,StellarFormationTime[scalefactor],StellarAge[Gyr] 
+    
+    units are:  positions [physical kpc], masses [M_sun], 
+                Metallicity "total" metal mass (everything not H, He) [mass fraction – so “solar” would be ~0.02] 
+    
+    Example
+    -------
+    pathtofolder = '/data17/grenache/aalazar/FIRE/GVB/m12b_res7100/output/hdf5/snapdir_600/'
+    star_snapdict, gas_snapdict = load_sim(pathtofolder,8,600)
+
+    '''
 
     gas_snapdict  = {"h":np.array([]),"a":np.array([]),
                      "x":np.array([]),"y":np.array([]),"z":np.array([]),
@@ -77,27 +100,72 @@ def load_sim(pathtofolder, nfiles, snapshot):
     return star_snapdict, gas_snapdict
 
 
-def load_halo(pathtofolder, nfiles, host=True):
+def load_halo(pathtofolder, snapshot, host=True, filetype='ascii'):
     '''
-    Assume file name format: halos_0.0.ascii
-    '''
-    halo_files = glob.glob(pathtofolder +'*.ascii')
-    halo = pd.read_csv(halo_files[0], skiprows=np.arange(1,20),sep=' ')
-    if len(halo_files) > 1:
-        for i in halo_files[1:]:
-            halo_hold = pd.read_csv(i, skiprows=np.arange(1,20),sep=' ')
-            halo = halo.append(halo_hold)
+    Load the halo files, there are several different configurations of file set up
     
+    Parameters
+    ----------
+    pathtofolder: str, path to the snapshot halo directory, ex /halo/rockstar_dm/hdf5/
+    host: bool, If true only returns the host values, otherwise it will return all halo data
+    filetype: str,  ascii or hdf5
+    
+    Returns
+    -------
+    halo: id,x,y,z,mvir,Halfmass_Radius,mbound_vir,rvir
+    
+    units are:  positions/distance [comoving kpc], masses [M_sun], 
+                
+    Example
+    -------
+    pathtofolder = '/data17/grenache/aalazar/FIRE/GVB/m12b_res7100/halo/rockstar_dm/hdf5'
+    halo = load_halo(pathtofolder, host=True)
+    
+    '''
+    
+    if filetype=='ascii':
+        # sizes are in sim code, need the 1/h factor
+        h = 0.710000
+        halo_files = glob.glob(pathtofolder +'*.ascii')
+        halo = pd.read_csv(halo_files[0], skiprows=np.arange(1,20),sep=' ')
+        if len(halo_files) > 1:
+            for i in halo_files[1:]:
+                halo_hold = pd.read_csv(i, skiprows=np.arange(1,20),sep=' ')
+                halo = halo.append(halo_hold)
+        halo = halo[['#id', 'x','y','z', 'mvir', 'Halfmass_Radius','mbound_vir', 'rvir']]    
+        halo = halo.rename(columns={'#id': 'id'})
+        halo = halo.set_index('id')
+        halo['x'],halo['y'],halo['z'] = halo['x']*1e3/h,halo['y']*1e3/h,halo['z']*1e3/h
+        halo['Halfmass_Radius'], halo['rvir'] = halo['Halfmass_Radius']/h, halo['rvir']/h
+        halo['mvir'], halo['mbound_vir'] = halo['mvir']/h, halo['mbound_vir']/h
+        
+        if host is True:
+            host_mask = halo['mvir'] == np.max(halo['mvir'])
+            return halo.loc[host_mask]
+        else:
+            return halo
 
-    halo = halo[['#id', 'x','y','z', 'mvir', 'Halfmass_Radius','mbound_vir', 'rvir']]    
-    halo = halo.rename(columns={'#id': 'id'})
-    halo = halo.set_index('id')
+    if filetype=='hdf5':
+        # Sizes are loaded as comoving, no 1/h factor
+        # I think masses are are in M_sun
+        halo_load = h5py.File(pathtofolder +'halo_'+ str(snapshot) +'.hdf5')
+        data = {'id':halo_load['id'][:],
+                'x':halo_load['position'][:,0],
+                'y':halo_load['position'][:,1],
+                'z':halo_load['position'][:,2], 
+                'mvir':halo_load['mass.vir'][:], 
+                'Halfmass_Radius':halo_load['radius'][:] ,
+                'mbound_vir':halo_load['mass.bound'][:], 
+                'rvir':halo_load['radius'][:]
+               }
+        halo = pd.DataFrame(data)
 
-    if host is True:
-        host_mask = halo['mvir'] == np.max(halo['mvir'])
-        return halo.loc[host_mask]
-    else:
-        return halo
+        
+        if host is True:
+            host_index = halo_load['host.index'][0]
+            return halo.loc[halo.index == host_index]
+        else:
+            return halo
     
     
 def mask_sim_to_halo(pathtofolder, nfiles, snapshot, star_snapdict=None, gas_snapdict=None, host_halo=None, lim = True ):
@@ -106,13 +174,11 @@ def mask_sim_to_halo(pathtofolder, nfiles, snapshot, star_snapdict=None, gas_sna
     if host_halo is None:
         host_halo = load_halo(pathtofolder, nfiles, host=True)
 
-    host_halo['x'] = host_halo['x'] * star_snapdict['a'] / star_snapdict['h'] * 1e3 
-    host_halo['y'] = host_halo['y'] * star_snapdict['a'] / star_snapdict['h'] * 1e3 
-    host_halo['z'] = host_halo['z'] * star_snapdict['a'] / star_snapdict['h'] * 1e3 
-    host_halo['mvir'] = host_halo['mvir'] * 1e10 / star_snapdict['h']
-    host_halo['mbound_vir'] = host_halo['mbound_vir'] * 1e10 / star_snapdict['h']
-    host_halo['Halfmass_Radius'] = host_halo['Halfmass_Radius'] * star_snapdict['a'] / star_snapdict['h']
-    host_halo['rvir'] = host_halo['rvir'] * star_snapdict['a'] / star_snapdict['h']
+    host_halo['x'] = host_halo['x'] * star_snapdict['a']
+    host_halo['y'] = host_halo['y'] * star_snapdict['a'] 
+    host_halo['z'] = host_halo['z'] * star_snapdict['a'] 
+    host_halo['Halfmass_Radius'] = host_halo['Halfmass_Radius'] * star_snapdict['a'] 
+    host_halo['rvir'] = host_halo['rvir'] * star_snapdict['a'] 
     
     star_snapdict['x'] = star_snapdict['x'] - host_halo['x'].values[0]
     star_snapdict['y'] = star_snapdict['y'] - host_halo['y'].values[0]
