@@ -12,7 +12,7 @@ def center_mass(coords,mass):
     Parameters
     ----------
     coords: array_like, shape (N,M), coordinates, any unit
-    mass: array_like, shape (N,), mass, any unit
+    mass:   array_like, shape (N,), mass, any unit
     
     Returns
     -------
@@ -28,32 +28,69 @@ def center_mass(coords,mass):
     return mass.dot(coords) / np.sum(mass)
 
 
-def lum_to_mag_SB(sb_lum, band):
+def absolute_mag(
+    L, 
+    band=None, 
+    Lsun = 1):
+    
+    '''
+    Calculates the absolute magnitude of the given luminosity given. 
+    Its can account for different units of L, and different bands.
+    
+    Parameters
+    ----------
+    L:    Luminosity in any units
+    band: Using the bands associated with sun_abs_mag function
+    Lsun: Luminosity of the sun in the same units as L
+            Lsun = 1 for L in solar lum units
+            Lsun = 3.846e33 for L in ergs/s
+    
+    Returns
+    -------
+    Absolute_magnitude
+    
+    Example
+    -------
+    mag_andromeda_V = absolute_mag(2.6e10, band=8, Lsun=1)
+    
+    '''
+
+    if band is None:
+        Msun = 4.83
+    else:
+        Msun = sun_abs_mag(band)
+    
+    return Msun - 2.5 * np.log10(L / Lsun)
+
+
+def lum_to_mag_SB(
+    sb_lum, 
+    band):
     '''
     Converts SB Lsun/kpc^2 to mag/arcsec^2 for a given filter band
     
     Parameters
     ----------
     sb_lum: array_like, SB Lsun/kpc^2 
-    band: index of band for sun_abs_mag
-          Review sun_abs_mag documentation to identify 
-          which index corresponds to which band
-          Default value is 4.83 mag which corresponds to 
-          
-    
+    band:   index of band for sun_abs_mag
+              Review sun_abs_mag documentation to identify 
+              which index corresponds to which band
+              Default value is 4.83 mag which corresponds to 
+              
     Returns
     -------
     sb_mag: array_like, SB mag/arcsec^2
     '''
+    
     if band is None:
         return 4.83 + 21.572 - 2.5 * np.log10(sb_lum / 10**6)
     else:
         sun_abs_mag(band) + 21.572 - 2.5 * np.log10(sb_lum / 10**6)
-        
-        
 
 
-def mag_to_lum_SB(sb_mag, band):
+def mag_to_lum_SB(
+    sb_mag, 
+    band):
     '''
     Converts SB  mag/arcsec^2 to Lsun/kpc^2 for a given filter band
     
@@ -77,8 +114,11 @@ def mag_to_lum_SB(sb_mag, band):
         10 ** ((sb_mag - sun_abs_mag(band) - 21.572) / -2.5 + 6)
         
 
-
-def sersic(r,Re,Ie,n):
+def sersic(
+    r,
+    Re,
+    Ie,
+    n):
     '''
     Calculates the Surface Brightness (SB) 
     at a given radius r for a sersic profile 
@@ -101,7 +141,12 @@ def sersic(r,Re,Ie,n):
     return Ie * np.exp ( -bn*( (r/Re)**(1/n) -1 ) )
 
 
-def measure_surfbright(image, FOV, center_mass=None, nmeasure=100, sb_lim=57650):
+def measure_surfbright(
+    image, 
+    FOV, 
+    center_mass=None, 
+    nmeasure=100, 
+    sb_lim=57650):
     '''
     Calculates the azimuthally averaged SB at nmeasure different 
     radii equally spaced from the center of the galaxy to the FOV. 
@@ -169,18 +214,44 @@ def measure_surfbright(image, FOV, center_mass=None, nmeasure=100, sb_lim=57650)
     return r[light_tot_shell_mask], light_tot_shell[light_tot_shell_mask]
 
 
-def measure_surfmass(star_coords, star_mass, FOV, center_mass=True, nmeasure=100):
-    
+def measure_surfmass(
+    star_coords, 
+    star_mass, 
+    FOV, 
+    centermass=True, 
+    nmeasure=100):
+    '''
+    Calculates the azimuthally averaged surface mass (SM) at nmeasure different 
+    radii equally spaced from the center of the galaxy to the FOV. 
+     
+    Parameters
+    ----------
+    star_coords: array_like, shape (N,N)
+    star_mass: array_like
+    FOV: Field of View, physical distance from the center of 
+        the galaxy to the edge of the image, often in kpc
+    center_mass: Stellar center of mass of the galaxy.
+        Form of [xcm,ycm,zcm]. If None it assumes center of is [0,0,0] 
+    nmeasure: integer Number of radii where the SM is measured 
+     
+    Returns
+    -------
+    r,m: returns an array of radii and the SM associated with them
+        
+    Example
+    -------
+    measure_surfmass(np.transpose([xcoord,ycoord,zcoord]), mass)
+    ''' 
     # creat arrays
     radius = np.linspace(0,FOV,num=nmeasure)     
-    sum_light = np.zeros(len(radius))
+    sum_mass = np.zeros(len(radius))
     circle_area = np.zeros(len(radius))
     
-    if center_mass is True:
-        center_mass = center_mass(np.transpose([star_coords[0],star_coords[1],star_coords[2]]), star_mass)    
+    if centermass is True:
+        cm_coord = center_mass(np.transpose([star_coords[0],star_coords[1],star_coords[2]]), star_mass)    
     for i in range(len(radius)):
         # mask that grabs pixels within give physical radius
-        rmask = ((star_coords[0]-center_mass[0])**2 + (star_coords[1]-center_mass[1])**2  <  radius[i]**2)
+        rmask = ((star_coords[0]-cm_coord[0])**2 + (star_coords[1]-cm_coord[1])**2  <  radius[i]**2)
         # Sum of the Luminosity with radius
         sum_mass[i] = np.sum(star_mass[rmask]) 
         # Area of within radius
@@ -197,7 +268,10 @@ def measure_surfmass(star_coords, star_mass, FOV, center_mass=True, nmeasure=100
     return r, mass_tot_shell
 
 
-def fit_sersic(r, sb, ax_sersic=None):
+def fit_sersic(
+    r, 
+    sb, 
+    ax_sersic=None):
     '''
     Fits a Sersic SB Profile to input data and returns the 
     best fit vales for the sersit fit. If ax_sersic is specified,
@@ -231,9 +305,95 @@ def fit_sersic(r, sb, ax_sersic=None):
         ax_sersic.get_figure().set_dpi(120)
     
     return Re,Ie,n,std
+
+
+def radius_of_param_limit(
+    radii, 
+    parameter, 
+    limits, 
+    limit_type='param_fraction'):
+    
+    '''
+    This function sorts the radii and the parameters in order of radius. It then does a 
+    cumulative sum of the parameter for the particles in order of smallest to largest radius.
+    It will reutrn the radius and cumulative parameter values for the limits set. Examples of 
+    parameters to use are mass or light. You can use a 3d or 2d radius. You can change the 
+    type of limit using the limit_type, refer to Parameters for examples.
+    
+    Parameters
+    ----------
+    radii:       array_like, the radius from the center to the particle
+    parameter:   array_like, the parameter value of the partice, ex: mass or luminosity
+    limits:      list_like, list of values to evaluate, the value depends on the limit_type
+    limit_type: 'param_fraction': returns radius that cantains the given fraction of the parameter
+                                    ex: radius that contains 50% of the total mass
+                'radius_fraction': returns parameter that cantains the given fraction of the radius 
+                                    ex: the mass that is contained in half the total radius
+                'param': returns the radius that conatins the param value, 
+                                    ex: the radius that contains a luminosity of 1e10 Lsun
+                'radius': returns the param value that is contained within the specificed radius 
+                                    ex: the luminosity within 1 kpc
+                
+    
+    Returns
+    -------
+    radius_measure: the radius at the specificed limits
+    param_measure:  the cumulative parameter value of the specified limits
+    
+    Example
+    -------
+    find the half light radius, and the 90% light radius in the xy projection
+    this would be the limit_type='param_fraction' with a limit =[.5,.9]
+     
+    radius_measure, param_measure = radius_of_param_limit(star_snapdict['r_xy'],
+                                                          lums[0],
+                                                          limits=[.5,.9],
+                                                          limit_type='param_fraction'
+                                                          )
+    
+    find the mass with a 3d 5 kpc radius
+    this would be the limit_type='radius' with a limit =[5]
+     
+    radius_measure, param_measure = radius_of_param_limit(star_snapdict['r'],
+                                                          star_snapdict['Masses'],
+                                                          limits=[5],
+                                                          limit_type='radius'
+                                                          )
+    '''
     
     
+    sort_index = np.argsort(radii)
     
+    radius = radii[sort_index]
+    param_sort = parameter[sort_index]
+    
+    param_cum = np.cumsum(param_sort)
+    param_tot = param_cum[-1]
+    rad_tot = radius[-1]
+
+    param_measure = []
+    radius_measure = []
+    
+    for i in limits:
+        if limit_type is 'param_fraction':
+            mask = param_cum <= param_tot * i
+        elif limit_type is 'radius_fraction':
+            mask = radius <= rad_tot * i
+        elif limit_type is 'param':
+            mask = param_cum <= i
+        elif limit_type is 'radius':
+            mask = radius <= i
+        
+                
+        p = param_cum[mask][-1]
+        param_measure.append(p)
+        
+        r = radius[mask][-1]
+        radius_measure.append(r)
+        
+    return radius_measure, param_measure
+
+   
 def sun_abs_mag(bands):
     '''
     Gives you the sun's absolute magnitude for a given filter band 
@@ -281,3 +441,4 @@ def sun_abs_mag(bands):
     mag_sun_ab[13] = 5.19 #K (BESSEL)
 
     return mag_sun_ab[bands]
+
