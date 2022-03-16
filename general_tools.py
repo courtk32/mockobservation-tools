@@ -146,23 +146,25 @@ def measure_surfbright(
     FOV, 
     center_mass=None, 
     nmeasure=100, 
-    sb_lim=57650):
+    sb_lim=57650,
+    return_type='surf_bright'):
     '''
     Calculates the azimuthally averaged SB at nmeasure different 
     radii equally spaced from the center of the galaxy to the FOV. 
      
     Parameters
     ----------
-    image: array_like, shape (N,N)
-        Image with NxN pixels, 
-        Each array value is the SB assoiated with that pixel     
-    FOV: Field of View, physical distance from the center of 
-        the galaxy to the edge of the image, often in kpc
+    image:       array_like, shape (N,N)
+                    Image with NxN pixels, 
+                    Each array value is the SB assoiated with that pixel     
+    FOV:         Field of View, physical distance from the center of 
+                    the galaxy to the edge of the image, often in kpc
     center_mass: Stellar center of mass of the galaxy.
-        Form of [xcm,ycm,zcm]. If None it assumes center of image [0,0,0] 
-    nmeasure: integer Number of radii where the SB is measured 
-    sb_lim: Impose a limit of observablility, units Lsun/kpc^2
-        Default of 57650 Lsun/kpc^2 = 29.5 mag, if no limit sb_lim=0
+                    Form of [xcm,ycm,zcm]. If None it assumes center of image [0,0,0] 
+    nmeasure:    integer Number of radii where the SB is measured 
+    sb_lim:      Impose a limit of observablility, units Lsun/kpc^2
+                    Default of 57650 Lsun/kpc^2 = 29.5 mag, if no limit sb_lim=0
+    return_type: str, 'surf_bright','shell_lum','cum_lum'
     
     Returns
     -------
@@ -200,16 +202,21 @@ def measure_surfbright(
         sum_light[i] = np.sum(image[rmask] * kpc_per_pixel) 
         # Area of within radius
         circle_area[i] = np.pi * radius[i]**2
+    r = radius[1:]
+    if return_type is 'cum_lum':
+        return radius, sum_light
     
     # luminosity within annulus between radii
     light_shell = sum_light[1:]-sum_light[:-1]
+    if return_type is 'shell_lum':
+        return r, light_shell
+    
     # Area within annulus between radii
     shell_area = circle_area[1:]-circle_area[:-1]
     # Average SB for a given annulus
     light_tot_shell = light_shell / shell_area
     # Mask out when ave SB drops below limit
     light_tot_shell_mask = light_tot_shell > sb_lim
-    r = radius[1:]
     
     return r[light_tot_shell_mask], light_tot_shell[light_tot_shell_mask]
 
