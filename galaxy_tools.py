@@ -358,6 +358,9 @@ def get_mock_observation(
     if center == 'light':
         cm = center_mass(np.transpose([coords_stars[0],coords_stars[1],coords_stars[2]]),
                          lums[2,:])
+    if center == 'none':
+        cm = [0,0,0]
+
         
     gas_out,out_band0,out_band1,out_band2 = raytrace_ugr_attenuation(coords_stars[0]-cm[0],
                                                                      coords_stars[1]-cm[1],
@@ -428,6 +431,10 @@ def get_mock_observation(
                             pixels=pixels)
 
         return np.rot90(image24,k=1,axes=(0,1)),np.rot90(out_band0,k=1,axes=(0,1)),np.rot90(out_band1,k=1,axes=(0,1)),np.rot90(out_band2,k=1,axes=(0,1))
+    
+    elif return_type is 'gas_mass':
+        # Returns the total gas mass in each pixel
+        return gas_out
 
 
 def convert_kpc_to_arcsec(
