@@ -11,6 +11,7 @@ from firestudio.utils.stellar_utils import raytrace_projection
 from firestudio.studios.star_studio import raytrace_ugr_attenuation
 import firestudio.utils.stellar_utils.make_threeband_image as makethreepic
 from abg_python.galaxy.cosmoExtractor import orientDiskFromSnapdicts,offsetRotateSnapshot
+from abg_python.physics_utils import getTemperature
 
 from astropy.cosmology import Planck13
 from general_tools import center_mass, lum_to_mag_SB, sun_abs_mag
@@ -18,7 +19,8 @@ from general_tools import center_mass, lum_to_mag_SB, sun_abs_mag
 
 def load_sim(
     pathtofolder, 
-    snapshot):
+    snapshot,
+    gas_temp=False):
     
     '''
     Loads one snap shot of the FIRE Simulations
@@ -47,6 +49,14 @@ def load_sim(
                      'Coordinates':np.empty((0,3)),'Velocities':np.empty((0,3)),
                      'Masses':np.empty(0),'Metallicity':np.empty(0),
                      'hsml':np.empty(0), 'ParticleIDs':np.empty(0)}
+    
+    if gas_temp is True:
+        gas_snapdict['Temperature'] = np.empty(0)
+        gas_snapdict['InternalEnergy'] = np.empty(0)
+        gas_snapdict['ElectronAbundance'] = np.empty(0)
+        gas_snapdict['Metallicity_He'] = np.empty(0)
+        
+    
     star_snapdict = {'h':np.empty(0),'a':np.empty(0),
                      'Coordinates':np.empty((0,3)),'Velocities':np.empty((0,3)), 
                      'Masses':np.empty(0),'Metallicity':np.empty(0),
@@ -79,6 +89,12 @@ def load_sim(
         gas_snapdict['hsml']        = np.append(gas_snapdict['hsml'],f['PartType0']['SmoothingLength'][:])
         gas_snapdict['ParticleIDs'] = np.append(gas_snapdict['ParticleIDs'],f['PartType0']['ParticleIDs'][:])
         
+        if gas_temp is True:
+            gas_snapdict['InternalEnergy']   = np.append(gas_snapdict['InternalEnergy'],f['PartType0']['InternalEnergy'][:])
+            gas_snapdict['ElectronAbundance']= np.append(gas_snapdict['ElectronAbundance'],f['PartType0']['ElectronAbundance'][:])
+            gas_snapdict['Metallicity_He']   = np.append(gas_snapdict['Metallicity_He'],f['PartType0']['Metallicity'][:,1])
+        
+        
         star_snapdict['Coordinates'] = np.append(star_snapdict['Coordinates'],
                                                  np.array([f['PartType4']['Coordinates'][:,0]*a_snap/h,
                                                            f['PartType4']['Coordinates'][:,1]*a_snap/h,
@@ -105,6 +121,11 @@ def load_sim(
     
     gas_snapdict['h'] = h
     gas_snapdict['a'] = a_snap
+    
+    if gas_temp is True:
+        gas_snapdict['Temperature'] = getTemperature(U_code = gas_snapdict['InternalEnergy'],
+                                                     helium_mass_fraction = gas_snapdict['Metallicity_He'], 
+                                                     ElectronAbundance = gas_snapdict['ElectronAbundance'])
     
     return star_snapdict, gas_snapdict
 
@@ -236,25 +257,29 @@ def mask_sim_to_halo(
     star_snapdict['r_xy'] = (star_snapdict['Coordinates'][:,0]**2 + star_snapdict['Coordinates'][:,1]**2) ** 0.5
     star_snapdict['r_yz'] = (star_snapdict['Coordinates'][:,1]**2 + star_snapdict['Coordinates'][:,2]**2) ** 0.5
     star_snapdict['r_zx'] = (star_snapdict['Coordinates'][:,2]**2 + star_snapdict['Coordinates'][:,0]**2) ** 0.5
+     
+    if len(star_snapdict['hsml']) == 0:
+        star_hsml = get_particle_hsml(star_snapdict['Coordinates'][:,0],
+                                      star_snapdict['Coordinates'][:,1],
+                                      star_snapdict['Coordinates'][:,2])
+        star_snapdict['hsml'] = np.append(star_snapdict['hsml'],star_hsml)
     
-    gas_snapdict['Coordinates'] = gas_snapdict['Coordinates'] - [host_halo['x'].values[0],host_halo['y'].values[0],host_halo['z'].values[0]]     
+    gas_snapdict['Coordinates'] = gas_snapdict['Coordinates'] - [host_halo['x'].values[0], host_halo['y'].values[0], host_halo['z'].values[0]]     
     gas_snapdict['r'] = (gas_snapdict['Coordinates'][:,0]**2 + 
                          gas_snapdict['Coordinates'][:,1]**2 + 
                          gas_snapdict['Coordinates'][:,2]**2) ** 0.5
     gas_snapdict['r_xy'] = (gas_snapdict['Coordinates'][:,0]**2 + gas_snapdict['Coordinates'][:,1]**2) ** 0.5
     gas_snapdict['r_yz'] = (gas_snapdict['Coordinates'][:,1]**2 + gas_snapdict['Coordinates'][:,2]**2) ** 0.5
     gas_snapdict['r_zx'] = (gas_snapdict['Coordinates'][:,2]**2 + gas_snapdict['Coordinates'][:,0]**2) ** 0.5
-                                                
+
     if lim is True:
         mask_star = star_snapdict['r'] < limvalue
         mask_gas = gas_snapdict['r'] < limvalue
-        
-        for key in ['Coordinates','Velocities','r','r_xy','r_yz','r_zx','Masses',
-                    'Metallicity','ParticleIDs','StellarFormationTime', 'StellarAge']:
+            
+        for key in list(star_snapdict.keys())[2:]:
             star_snapdict[key] = star_snapdict[key][mask_star]
         
-        for key in ['Coordinates','Velocities','r','r_xy','r_yz','r_zx','Masses',
-                    'Metallicity','ParticleIDs','hsml']:
+        for key in list(gas_snapdict.keys())[2:]: # no mask for a, h keys
             gas_snapdict[key] = gas_snapdict[key][mask_gas]
             
         if orient is True:    
