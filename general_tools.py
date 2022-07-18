@@ -63,6 +63,36 @@ def absolute_mag(
     return Msun - 2.5 * np.log10(L / Lsun)
 
 
+def absolute_lum(
+    M, 
+    band=None, 
+    Lsun = 1):
+    
+    '''
+    Calculates the absolute magnitude of the given luminosity given. 
+    Its can account for different units of L, and different bands.
+    
+    Parameters
+    ----------
+    M:    Luminosity in any units
+    band: Using the bands associated with sun_abs_mag function
+    
+    Returns
+    -------
+    Luminosity in units Lsun
+    
+    Example
+    -------
+    
+    '''
+
+    if band is None:
+        Msun = 4.83
+    else:
+        Msun = sun_abs_mag(band)
+    
+    return 10 ** ((M - Msun) / -2.5)
+
 def lum_to_mag_SB(
     sb_lum, 
     band):
@@ -85,7 +115,7 @@ def lum_to_mag_SB(
     if band is None:
         return 4.83 + 21.572 - 2.5 * np.log10(sb_lum / 10**6)
     else:
-        sun_abs_mag(band) + 21.572 - 2.5 * np.log10(sb_lum / 10**6)
+        return sun_abs_mag(band) + 21.572 - 2.5 * np.log10(sb_lum / 10**6)
 
 
 def mag_to_lum_SB(
@@ -295,6 +325,106 @@ def fit_sersic(
     Re,Ie,n,std: best fit sersic parameters and the standard deviation
     '''
   
+    # p0 is guess for paprameters, should not change outcome
+    popt, pcov = curve_fit(sersic, r, sb, p0=[1,10**6,0.7])
+    Re,Ie,n = popt
+    std = np.sqrt(np.diag(pcov))    
+        
+    if ax_sersic is not None:
+        ax_sersic.loglog(r, sersic(r, *popt),label='Sersic',c='red')
+        ax_sersic.loglog(r,sb,label='Data',c='k')
+        ax_sersic.set_ylim(56000, np.max(sb)*1.1)
+        ax_sersic.set_ylabel("'den' [L$_\odot$ kpc$^{-2}$]")
+        ax_sersic.set_xlabel(" Radius [kpc]")
+        ax_sersic.legend(frameon=False,loc=1)
+        ax_sersic.text(r[0], 56000 +  np.log10(np.max(sb))/10*56000*2,f'R$_e$: {Re:.2f} kpc',color='k')
+        ax_sersic.text(r[0], 56000 +  np.log10(np.max(sb))/10*56000,f'n:  {n:.2f}',color='k')
+        ax_sersic.get_figure().set_dpi(120)
+    
+    return Re,Ie,n,std
+
+def fit_sersic_2D(
+    r, 
+    sb, 
+    ax_sersic=None):
+    '''
+    Fits a Sersic SB Profile to input data and returns the 
+    best fit vales for the sersit fit. If ax_sersic is specified,
+    function returns loglog plot of data and sersic fit. 
+    
+    Parameters
+    ----------
+    r: array_like, radii where SB is measured
+    sb: array_like, SB associated with radius r
+    ax_sersic: plot axis, ex: plt.gca()
+    
+    Returns
+    -------
+    Re,Ie,n,std: best fit sersic parameters and the standard deviation
+    '''
+  
+    def sersic_2D_forfit(mesh1D,
+                     amplitude,
+                     r_eff,
+                     n,
+                     x_0,
+                     y_0,
+                     ellip,
+                     theta):
+    
+        '''
+        The Sersic2D takes in a meshgrid to return an image. 
+        This function takes in the compressed mesh so that it can be fit with curve_fit
+
+        Parameters
+        ----------
+        mesh1D: array_like, shape (2,pixel**2), 
+                stacked the unraveled x and y values of the mesh (example below)
+        kwargs: from Sersic2D
+
+        Returns
+        -------
+        image: the intesity value at each pixel, shape of (pixel,pixel)
+
+        Example
+        -------
+        How to set up the 1D mesh grid
+        x, y = np.linspace(-FOV, FOV, pixel), np.linspace(-FOV, FOV, pixel)
+        X, Y = np.meshgrid(x, y)
+        mesh1D = np.vstack((X.ravel(), Y.ravel()))
+
+        '''
+    
+        sersic_mod = Sersic2D(amplitude=amplitude, 
+                              r_eff=r_eff, 
+                              n=n, 
+                              x_0=x_0, 
+                              y_0=y_0, 
+                              ellip=ellip, 
+                              theta=theta)
+
+
+        x, y = mesh1D
+        image = sersic_mod(x, y)
+        return image
+
+    
+    
+    mid_pixel_FOV = FOV - FOV / pixel
+    x, y = np.linspace(-mid_pixel_FOV, mid_pixel_FOV, pixel), np.linspace(-mid_pixel_FOV, mid_pixel_FOV, pixel)
+    X, Y = np.meshgrid(x, y)
+    mesh1D = np.vstack((X.ravel(), Y.ravel()))
+
+
+
+    popt, pcov = curve_fit(sersic_2D_forfit, mesh1D, band_image.ravel(), guess_prms,
+                           bounds=((0, 0, 0, -np.inf, -np.inf, 0, -np.inf),
+                                   (np.inf, np.inf, np.inf, np.inf, np.inf, 1, np.inf)))
+    
+    
+    
+    
+
     # p0 is guess for paprameters, should not change outcome
     popt, pcov = curve_fit(sersic, r, sb, p0=[1,10**6,0.7])
     Re,Ie,n = popt
