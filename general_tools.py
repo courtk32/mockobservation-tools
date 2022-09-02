@@ -149,6 +149,7 @@ def mag_to_lum_SB(
 def measure_surfbright(
     image, 
     FOV, 
+    pixel=1000,
     center_mass=None, 
     nmeasure=100, 
     sb_lim=57650,
@@ -163,8 +164,9 @@ def measure_surfbright(
     image:       array_like, shape (N,N)
                     Image with NxN pixels, 
                     Each array value is the SB assoiated with that pixel     
-    FOV:         Field of View, physical distance from the center of 
+    FOV:         float, Field of View, physical distance from the center of 
                     the galaxy to the edge of the image, often in kpc
+    pixel:       int, number of pixels across the image
     center_mass: Stellar center of mass of the galaxy.
                     Form of [xcm,ycm,zcm]. If None it assumes center of image [0,0,0] 
     nmeasure:    integer Number of radii where the SB is measured 

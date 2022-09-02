@@ -179,6 +179,9 @@ def fit_sersic(
         popt, pcov = curve_fit(sersic2D_forfit, mesh1D, image.ravel(), p0,
                                bounds=((0, 0, 0, -np.inf, -np.inf, 0, -np.inf),
                                        (np.inf, np.inf, np.inf, np.inf, np.inf, 1, np.inf)))
+        # this makes the angle given to be between 0,pi 
+        # I tried doing this in the bounds of curve_fit and it messed it up
+        popt[6] = popt[6]%(np.pi) 
         std = np.sqrt(np.diag(pcov))  
         
         
