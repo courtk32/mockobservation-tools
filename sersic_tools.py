@@ -3,6 +3,7 @@ import numpy as np
 
 from astropy.modeling.models import Sersic1D,Sersic2D
 from scipy.optimize import curve_fit
+from scipy.integrate import quad
 
 
 def sersic(
@@ -208,3 +209,31 @@ def fit_sersic(
     
     return popt, std
 
+def integrate_sersic(
+    amplitude,
+    r_eff,
+    n, 
+    x_0=0,
+    y_0=0,
+    ellip=0,
+    theta=0, 
+    sersic_type='sersic',
+    int_min=0,
+    int_max=100):
+    
+    if sersic_type == 'sersic':
+        def integrate_sersic_function(r,amplitude,r_eff,n):
+            return sersic(r,amplitude,r_eff,n) * 2 * np.pi * r
+        return quad(integrate_sersic_function,int_min,int_max, args=(amplitude,r_eff,n))[0]
+
+
+        
+    if sersic_type == 'sersic1D':        
+        def integrate_sersic_function(r,amplitude,r_eff,n):
+            return sersic1D_forfit(r,amplitude,r_eff,n) * 2 * np.pi * r
+        return quad(integrate_sersic_function,int_min,int_max, args=(amplitude,r_eff,n))[0]
+
+        
+    if sersic_type == 'sersic2D':
+        return 'Not Set Up'
+    

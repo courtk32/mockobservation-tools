@@ -150,6 +150,9 @@ def measure_surfbright(
     image, 
     FOV, 
     pixel=1000,
+    major_axis=0,
+    ellip=0, 
+    theta=0,
     center_mass=None, 
     nmeasure=100, 
     sb_lim=57650,
@@ -191,6 +194,21 @@ def measure_surfbright(
     y_coord_kpc = np.linspace(mid_pixel_FOV,-mid_pixel_FOV,num=pixels) 
     y_coord_kpc = np.array([y_coord_kpc,]*pixels).transpose()
     
+    
+    if center_mass is None:
+        center_mass = [0,0,0]
+  
+    if ellip > 0 :
+        a, b = major_axis, (1 - ellip) * major_axis
+        cos_theta, sin_theta = np.cos(theta), np.sin(theta)
+        x_coord_kpc = (x_coord_kpc - center_mass[0]) * cos_theta + (x_coord_kpc - center_mass[1]) * sin_theta
+        y_coord_kpc = -(y_coord_kpc - center_mass[0]) * sin_theta + (y_coord_kpc - center_mass[1]) * cos_theta
+        z = np.sqrt((x_coord_kpc / a) ** 2 + (y_coord_kpc / b) ** 2)
+    else:
+        z = None
+
+
+    
     # creat arrays
     radius = np.linspace(0,FOV,num=nmeasure)     
     sum_light = np.zeros(len(radius))
@@ -201,23 +219,23 @@ def measure_surfbright(
     mag_lim_mask =  image < sb_lim
     image[mag_lim_mask] = 0
     
-    if center_mass is None:
-        center_mass = [0,0,0]
-    
     for i in range(len(radius)):
         # mask that grabs pixels within give physical radius
-        rmask = ((x_coord_kpc-center_mass[0])**2 + (y_coord_kpc-center_mass[1])**2  <  radius[i]**2)
+        if z is not None:
+            rmask = (z**2  <  radius[i]**2)
+        else:
+            rmask = ((x_coord_kpc-center_mass[0])**2 + (y_coord_kpc-center_mass[1])**2  <  radius[i]**2)
         # Sum of the Luminosity with radius
         sum_light[i] = np.sum(image[rmask] * kpc_per_pixel) 
         # Area of within radius
         circle_area[i] = np.pi * radius[i]**2
     r = radius[1:]
-    if return_type is 'cum_lum':
+    if return_type == 'cum_lum':
         return radius, sum_light
     
     # luminosity within annulus between radii
     light_shell = sum_light[1:]-sum_light[:-1]
-    if return_type is 'shell_lum':
+    if return_type == 'shell_lum':
         return r, light_shell
     
     # Area within annulus between radii
@@ -352,13 +370,13 @@ def radius_of_param_limit(
     radius_measure = []
     
     for i in limits:
-        if limit_type is 'param_fraction':
+        if limit_type == 'param_fraction':
             mask = param_cum <= param_tot * i
-        elif limit_type is 'radius_fraction':
+        elif limit_type == 'radius_fraction':
             mask = radius <= rad_tot * i
-        elif limit_type is 'param':
+        elif limit_type == 'param':
             mask = param_cum <= i
-        elif limit_type is 'radius':
+        elif limit_type == 'radius':
             mask = radius <= i
         
                 
@@ -418,4 +436,89 @@ def sun_abs_mag(bands):
     mag_sun_ab[13] = 5.19 #K (BESSEL)
 
     return mag_sun_ab[bands]
+
+
+def obs_mass(
+    lum, 
+    mag_g, 
+    mag_r):
+     
+    '''
+    Calculates the estimated mass of the Galaxy using eq 3:
+    https://iopscience.iop.org/article/10.3847/1538-4357/ac2581/pdf
+    This is a color weighted mass to light ratio
+    
+    
+    Parameters
+    ----------
+    lum: array_like, Total luminosity of galaxy, units Lsun
+    mag_g, mag_r: array_like, Total mag in band g,r for galaxy
+    
+    Returns
+    -------
+    Mass: array_like, Estimated mass of the galaxy in Msun
+    
+    '''
+    
+    logMass_L =  1.774 * (mag_g - mag_r) - 0.783
+    Mass = lum * 10 ** logMass_L
+    return Mass
+
+
+def re_from_mass(
+    mass, 
+    a,
+    b,
+    param_type='lange'):
+    
+    '''
+    Calculates the estimated effective radius of the galaxy 
+    based on mass and the mass-radius relationship used.
+    Different a and b values used for different relationships.
+    
+    Two functionally forms of the relationship, 
+    'local' is the form used in the local dwarfs paper eq 5:
+    https://iopscience.iop.org/article/10.3847/1538-4357/ac2581/pdf
+    
+    'lange' is the form used in Lange et al. eq 2:
+    https://ui.adsabs.harvard.edu/abs/2016MNRAS.462.1470L/abstract
+
+
+    Parameters
+    ----------
+    mass: array_like, Measured mass of the galaxy, Msun
+    a, b: float, relationship parameters found in the papers
+    
+    Returns
+    -------
+    re: array_like, estimated effective radius of galaxy, units kpc
+    
+    Example
+    -------
+    #Global trend from Lange
+    a = 4.104
+    b = 0.208
+    re = re_from_mass(1e8,a,b)
+    
+    #Local Dwarf Trend 
+    a = 1.077
+    b = 0.246    
+    re = re_from_mass(5e5,a,b,param_type='local')
+    
+    '''
+    
+    
+    if param_type == 'local':
+        # https://iopscience.iop.org/article/10.3847/1538-4357/ac2581/pdf
+        # eq 5
+        log_re_pc = a + b * np.log10(mass)
+        return (10 ** log_re_pc) * 1e-3
+    
+    elif param_type == 'lange':
+        # https://ui.adsabs.harvard.edu/abs/2016MNRAS.462.1470L/abstract
+        # eq 2
+        return a * ( mass * 1e-10) ** b
+
+
+
 
