@@ -1,5 +1,5 @@
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 def center_mass(
     coords,
@@ -150,7 +150,7 @@ def measure_surfbright(
     image, 
     FOV, 
     pixel=1000,
-    major_axis=0,
+    major_axis=1,
     ellip=0, 
     theta=0,
     center_mass=None, 
@@ -189,10 +189,14 @@ def measure_surfbright(
     
     # Create distance array, the same shape as the image
     # Used to mask image based on physical location
-    x_coord_kpc = np.linspace(-mid_pixel_FOV,mid_pixel_FOV,num=pixels)
-    x_coord_kpc = np.array([x_coord_kpc,]*pixels)
-    y_coord_kpc = np.linspace(mid_pixel_FOV,-mid_pixel_FOV,num=pixels) 
-    y_coord_kpc = np.array([y_coord_kpc,]*pixels).transpose()
+    #x_coord_kpc = np.linspace(-mid_pixel_FOV,mid_pixel_FOV,num=pixels)
+    #x_coord_kpc = np.array([x_coord_kpc,]*pixels)
+    #y_coord_kpc = np.linspace(-mid_pixel_FOV,mid_pixel_FOV,num=pixels) 
+    #y_coord_kpc = np.array([y_coord_kpc,]*pixels).transpose()
+    
+    mid_pixel_FOV = FOV - FOV / pixel
+    x, y = np.linspace(-mid_pixel_FOV, mid_pixel_FOV, pixel), np.linspace(-mid_pixel_FOV, mid_pixel_FOV, pixel)
+    X, Y = np.meshgrid(x, y)
     
     
     if center_mass is None:
@@ -201,9 +205,9 @@ def measure_surfbright(
     if ellip > 0 :
         a, b = major_axis, (1 - ellip) * major_axis
         cos_theta, sin_theta = np.cos(theta), np.sin(theta)
-        x_coord_kpc = (x_coord_kpc - center_mass[0]) * cos_theta + (x_coord_kpc - center_mass[1]) * sin_theta
-        y_coord_kpc = -(y_coord_kpc - center_mass[0]) * sin_theta + (y_coord_kpc - center_mass[1]) * cos_theta
-        z = np.sqrt((x_coord_kpc / a) ** 2 + (y_coord_kpc / b) ** 2)
+        X_rot = (X - center_mass[0]) * cos_theta + (Y - center_mass[1]) * sin_theta
+        Y_rot = -(X - center_mass[0]) * sin_theta + (Y - center_mass[1]) * cos_theta
+        z = np.sqrt((X_rot / a) ** 2 + (Y_rot / b) ** 2)
     else:
         z = None
 
@@ -213,7 +217,7 @@ def measure_surfbright(
     radius = np.linspace(0,FOV,num=nmeasure)     
     sum_light = np.zeros(len(radius))
     circle_area = np.zeros(len(radius))
-    
+ 
     # assume magnitude limited image,
     # 0 contribution from pixels less the the limit
     mag_lim_mask =  image < sb_lim
@@ -222,13 +226,18 @@ def measure_surfbright(
     for i in range(len(radius)):
         # mask that grabs pixels within give physical radius
         if z is not None:
-            rmask = (z**2  <  radius[i]**2)
+            #this makes the radius equivalent to the distance on the major axis
+            #ex z = X_rot / a, so the distance within the major axis is X_rot = z * a
+            rmask = (z * major_axis)**2  <  (radius[i] **2)
+    
         else:
-            rmask = ((x_coord_kpc-center_mass[0])**2 + (y_coord_kpc-center_mass[1])**2  <  radius[i]**2)
+                     
+            rmask = ((X-center_mass[0])**2 + (Y-center_mass[1])**2  <  radius[i]**2)
         # Sum of the Luminosity with radius
+
         sum_light[i] = np.sum(image[rmask] * kpc_per_pixel) 
         # Area of within radius
-        circle_area[i] = np.pi * radius[i]**2
+        circle_area[i] = np.pi * radius[i]**2 * (1 - ellip) 
     r = radius[1:]
     if return_type == 'cum_lum':
         return radius, sum_light
