@@ -337,6 +337,7 @@ def radius_of_param_limit(
                                     ex: the radius that contains a luminosity of 1e10 Lsun
                 'radius': returns the param value that is contained within the specificed radius 
                                     ex: the luminosity within 1 kpc
+                'param_cum: same as param_fraction but the parameter input is already cumulative. 
                 
     
     Returns
@@ -371,7 +372,11 @@ def radius_of_param_limit(
     radius = radii[sort_index]
     param_sort = parameter[sort_index]
     
-    param_cum = np.cumsum(param_sort)
+    if limit_type == 'param_cum':
+        param_cum = param_sort
+    else:
+        param_cum = np.cumsum(param_sort)
+        
     param_tot = param_cum[-1]
     rad_tot = radius[-1]
 
@@ -379,7 +384,7 @@ def radius_of_param_limit(
     radius_measure = []
     
     for i in limits:
-        if limit_type == 'param_fraction':
+        if limit_type == 'param_fraction' or limit_type == 'param_cum':
             mask = param_cum <= param_tot * i
         elif limit_type == 'radius_fraction':
             mask = radius <= rad_tot * i
