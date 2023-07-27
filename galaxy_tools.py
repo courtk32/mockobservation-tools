@@ -168,7 +168,8 @@ def load_halo(
     if filetype=='ascii':
         # sizes are in sim code, need the 1/h factor
         h = 0.710000
-        halo_files = glob.glob(pathtofolder +'halos_'+str(snapshot)+'*.ascii')
+        #halo_files = glob.glob(pathtofolder +'halos_'+str(snapshot)+'*.ascii')
+        halo_files = glob.glob(pathtofolder +'halos_*.ascii')
         halo = pd.read_csv(halo_files[0], skiprows=np.arange(1,20),sep=' ')
         if len(halo_files) > 1:
             for i in halo_files[1:]:

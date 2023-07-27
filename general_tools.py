@@ -183,9 +183,9 @@ def measure_surfbright(
         They are masked to only return the r,SB such that SB > sb_lim
     ''' 
     
-    pixels = len(image)
+    pixel = len(image)
     mid_pixel_FOV = FOV - FOV / pixel
-    kpc_per_pixel = (FOV / (pixels/2))**2 # area 
+    kpc_per_pixel = (FOV / (pixel/2))**2 # area 
     
     # Create distance array, the same shape as the image
     # Used to mask image based on physical location
