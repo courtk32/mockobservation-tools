@@ -314,6 +314,7 @@ def measure_surfmass(
 def radius_of_param_limit(
     radii, 
     parameter, 
+    cumulative,
     limits, 
     limit_type='param_fraction'):
     
@@ -328,6 +329,7 @@ def radius_of_param_limit(
     ----------
     radii:       array_like, the radius from the center to the particle
     parameter:   array_like, the parameter value of the partice, ex: mass or luminosity
+    cumulative:  If true than the parameter is already cumulative. 
     limits:      list_like, list of values to evaluate, the value depends on the limit_type
     limit_type: 'param_fraction': returns radius that cantains the given fraction of the parameter
                                     ex: radius that contains 50% of the total mass
@@ -337,7 +339,6 @@ def radius_of_param_limit(
                                     ex: the radius that contains a luminosity of 1e10 Lsun
                 'radius': returns the param value that is contained within the specificed radius 
                                     ex: the luminosity within 1 kpc
-                'param_cum: same as param_fraction but the parameter input is already cumulative. 
                 
     
     Returns
@@ -372,7 +373,7 @@ def radius_of_param_limit(
     radius = radii[sort_index]
     param_sort = parameter[sort_index]
     
-    if limit_type == 'param_cum':
+    if cumulative == True:
         param_cum = param_sort
     else:
         param_cum = np.cumsum(param_sort)
@@ -384,7 +385,7 @@ def radius_of_param_limit(
     radius_measure = []
     
     for i in limits:
-        if limit_type == 'param_fraction' or limit_type == 'param_cum':
+        if limit_type == 'param_fraction':
             mask = param_cum <= param_tot * i
         elif limit_type == 'radius_fraction':
             mask = radius <= rad_tot * i
