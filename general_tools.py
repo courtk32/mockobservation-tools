@@ -143,7 +143,7 @@ def mag_to_lum_SB(
     if band is None:
         return 10 ** ((sb_mag - 4.83 - 21.572) / -2.5 + 6)
     else:
-        10 ** ((sb_mag - sun_abs_mag(band) - 21.572) / -2.5 + 6)
+        return 10 ** ((sb_mag - sun_abs_mag(band) - 21.572) / -2.5 + 6)
         
 
 def measure_surfbright(
