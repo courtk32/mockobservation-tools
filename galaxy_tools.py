@@ -20,6 +20,7 @@ from general_tools import center_mass, lum_to_mag_SB, sun_abs_mag
 def load_sim(
     pathtofolder, 
     snapshot,
+    dark_matter=False,
     gas_temp=False):
     
     '''
@@ -63,6 +64,12 @@ def load_sim(
                      'Masses':np.empty(0),'Metallicity':np.empty(0),
                      'hsml':np.empty(0), 'ParticleIDs':np.empty(0),
                      'StellarFormationTime':np.empty(0), 'StellarAge':np.empty(0)}
+    
+    if dark_matter is True:
+        dark_snapdict = {'h':np.empty(0),'a':np.empty(0),
+                        'Coordinates':np.empty((0,3)),'Velocities':np.empty((0,3)), 
+                        'Masses':np.empty(0), 'ParticleIDs':np.empty(0)}
+    
 
     snap_files = glob.glob(pathtofolder +'*.hdf5')
 
@@ -111,6 +118,29 @@ def load_sim(
         star_snapdict['Metallicity'] = np.append(star_snapdict['Metallicity'],f['PartType4']['Metallicity'][:,0])
         star_snapdict['StellarFormationTime'] = np.append(star_snapdict['StellarFormationTime'],f['PartType4']['StellarFormationTime'][:])
         star_snapdict['ParticleIDs'] = np.append(star_snapdict['ParticleIDs'],f['PartType4']['ParticleIDs'][:])
+        
+        
+        if dark_matter is True:
+            dark_snapdict['Coordinates'] = np.append(dark_snapdict['Coordinates'],
+                                                     np.array([f['PartType1']['Coordinates'][:,0]*a_snap/h,
+                                                          f['PartType1']['Coordinates'][:,1]*a_snap/h,
+                                                          f['PartType1']['Coordinates'][:,2]*a_snap/h
+                                                         ]).T, axis=0)
+            dark_snapdict['Velocities'] = np.append(dark_snapdict['Velocities'],
+                                                    np.array([f['PartType1']['Velocities'][:,0],
+                                                           f['PartType1']['Velocities'][:,1],
+                                                           f['PartType1']['Velocities'][:,2]
+                                                          ]).T, axis=0)
+        
+            dark_snapdict['Masses']      = np.append(dark_snapdict['Masses'],f['PartType1']['Masses'][:]*(10**10)/h)
+            dark_snapdict['ParticleIDs'] = np.append(dark_snapdict['ParticleIDs'],f['PartType1']['ParticleIDs'][:])
+            dark_snapdict['h'] = h
+            dark_snapdict['a'] = a_snap
+            
+            
+
+        
+        
 
         f.close()
     
@@ -127,8 +157,11 @@ def load_sim(
         gas_snapdict['Temperature'] = getTemperature(U_code = gas_snapdict['InternalEnergy'],
                                                      helium_mass_fraction = gas_snapdict['Metallicity_He'], 
                                                      ElectronAbundance = gas_snapdict['ElectronAbundance'])
-    
-    return star_snapdict, gas_snapdict
+    if dark_matter is True:
+        return dark_snapdict, star_snapdict, gas_snapdict
+    else:
+        return star_snapdict, gas_snapdict
+
 
 
 def load_halo(
