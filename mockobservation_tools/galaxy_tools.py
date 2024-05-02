@@ -14,7 +14,7 @@ from abg_python.galaxy.cosmoExtractor import orientDiskFromSnapdicts,offsetRotat
 from abg_python.physics_utils import getTemperature
 
 from astropy.cosmology import Planck13
-from general_tools import center_mass, lum_to_mag_SB, sun_abs_mag
+from .general_tools import center_mass, lum_to_mag_SB, sun_abs_mag
 
 
 def load_sim(
