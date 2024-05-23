@@ -594,22 +594,22 @@ def get_mock_observation(
                                                                      zlim = (-FOV,FOV)
                                                                     )
     
-    if return_type is 'lum':
+    if return_type == 'lum':
         unit_factor = 1e10 # gives units in Lsun
         return lums[0]*unit_factor, lums[1]*unit_factor, lums[2]*unit_factor
 
     
-    elif return_type is 'lum_proj':
+    elif return_type == 'lum_proj':
         unit_factor = 1e10 # gives units in Lsun        
         return out_band0*unit_factor, out_band1*unit_factor, out_band2*unit_factor
     
     
-    elif return_type is 'SB_lum':
+    elif return_type == 'SB_lum':
         unit_factor = 1e10/(2*FOV/pixels)**2 # gives units in Lsun kpc^-2
         return out_band0*unit_factor, out_band1*unit_factor, out_band2*unit_factor
     
     
-    elif return_type is 'mag':
+    elif return_type == 'mag':
         unit_factor = 1e10 # gives units in Lsun
         mag0 = sun_abs_mag(bands[0]) - 2.5 * np.log10(lums[0] * unit_factor)
         mag1 = sun_abs_mag(bands[1]) - 2.5 * np.log10(lums[1] * unit_factor)
@@ -617,7 +617,7 @@ def get_mock_observation(
         return mag0, mag1, mag2
     
     
-    elif return_type is 'mag_proj':
+    elif return_type == 'mag_proj':
         unit_factor = 1e10 # gives units in Lsun
         mag0 = sun_abs_mag(bands[0]) - 2.5 * np.log10(out_band0 * unit_factor)
         mag1 = sun_abs_mag(bands[1]) - 2.5 * np.log10(out_band1 * unit_factor)
@@ -625,7 +625,7 @@ def get_mock_observation(
         return mag0, mag1, mag2
     
     
-    elif return_type is 'SB_mag':
+    elif return_type == 'SB_mag':
         unit_factor = 1e10/(2*FOV/pixels)**2 # gives units in Lsun kpc^-2        
         mag0 = lum_to_mag_SB(out_band0 * unit_factor)
         mag1 = lum_to_mag_SB(out_band1 * unit_factor)
@@ -633,7 +633,7 @@ def get_mock_observation(
         return mag0, mag1, mag2
     
     
-    elif return_type is 'mock_image':
+    elif return_type == 'mock_image':
         unit_factor = 1e10/(2*FOV/pixels)**2
         out_band0,out_band1,out_band2 = out_band0*unit_factor, out_band1*unit_factor, out_band2*unit_factor
         image24, massmap = makethreepic.make_threeband_image_process_bandmaps(
@@ -643,7 +643,7 @@ def get_mock_observation(
 
         return np.rot90(image24,k=1,axes=(0,1)),np.rot90(out_band0,k=1,axes=(0,1)),np.rot90(out_band1,k=1,axes=(0,1)),np.rot90(out_band2,k=1,axes=(0,1))
     
-    elif return_type is 'gas_mass':
+    elif return_type == 'gas_mass':
         # Returns the total gas mass in each pixel
         return gas_out
 
