@@ -336,14 +336,14 @@ def mask_sim_to_halo(
 def load_sim_FIREBox(
     obj_path,    
     ahf_path = None,
-    mass_unit = 'simulation' ,
-    length_unit = 'simulation'):
+    mass_unit = 'physical' ,
+    length_unit = 'physical'):
     
     '''
     Loads FIREBox galaxies preped by Prof. Jorge Moreno
     Sets up data to be used for mock images
     Converts all units to physical units
-    Assume simulation units from Moreno Data
+    Assume physical units from Moreno Data
     ahf_path contains particle ids. This will mask to only bound particles 
     
     Parameters
@@ -389,7 +389,7 @@ def load_sim_FIREBox(
         
     #Unit conversion 
     if mass_unit == 'physical':
-        mass_conversion = 1
+        mass_conversion = (10**10)
     elif mass_unit == 'simulation':
         mass_conversion = (10**10)/h
     
@@ -491,7 +491,7 @@ def get_mock_observation(
     FOV=25, 
     pixels=500, 
     view='xy', 
-    center = 'mass',
+    center = 'none',
     minden=57650, 
     dynrange=52622824.0/57650, 
     mass_scaler = 1 / 1e10, 

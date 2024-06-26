@@ -149,11 +149,12 @@ def mag_to_lum_SB(
 def measure_surfbright(
     image, 
     FOV, 
-    pixel=1000,
+    pixel=None,
     major_axis=1,
     ellip=0, 
     theta=0,
-    center_mass=None, 
+    center_mass_coords=None,
+    center_light=False,
     nmeasure=100, 
     sb_lim=57650,
     return_type='surf_bright'):
@@ -172,6 +173,7 @@ def measure_surfbright(
     pixel:       int, number of pixels across the image
     center_mass: Stellar center of mass of the galaxy.
                     Form of [xcm,ycm,zcm]. If None it assumes center of image [0,0,0] 
+    center_light:True/False. Finds center of light and uses that to measure
     nmeasure:    integer Number of radii where the SB is measured 
     sb_lim:      Impose a limit of observablility, units Lsun/kpc^2
                     Default of 57650 Lsun/kpc^2 = 29.5 mag, if no limit sb_lim=0
@@ -182,8 +184,9 @@ def measure_surfbright(
     r,sb: returns an array of radii and the SB associated with them
         They are masked to only return the r,SB such that SB > sb_lim
     ''' 
-    
-    pixel = len(image)
+    if pixel is None:
+        pixel = len(image)
+        
     mid_pixel_FOV = FOV - FOV / pixel
     kpc_per_pixel = (FOV / (pixel/2))**2 # area 
     
@@ -199,19 +202,21 @@ def measure_surfbright(
     X, Y = np.meshgrid(x, y)
     
     
-    if center_mass is None:
-        center_mass = [0,0,0]
+    if center_mass_coords is None:
+        center = [0,0,0]
+    if center_light is True:
+        center = center_mass(np.array([X.flatten(), Y.flatten()]).T, image.flatten())
+        
   
     if ellip > 0 :
         a, b = major_axis, (1 - ellip) * major_axis
         cos_theta, sin_theta = np.cos(theta), np.sin(theta)
-        X_rot = (X - center_mass[0]) * cos_theta + (Y - center_mass[1]) * sin_theta
-        Y_rot = -(X - center_mass[0]) * sin_theta + (Y - center_mass[1]) * cos_theta
+        X_rot = (X - center[0]) * cos_theta + (Y - center[1]) * sin_theta
+        Y_rot = -(X - center[0]) * sin_theta + (Y - center[1]) * cos_theta
         z = np.sqrt((X_rot / a) ** 2 + (Y_rot / b) ** 2)
     else:
         z = None
-
-
+        
     
     # creat arrays
     radius = np.linspace(0,FOV,num=nmeasure)     
@@ -232,7 +237,7 @@ def measure_surfbright(
     
         else:
                      
-            rmask = ((X-center_mass[0])**2 + (Y-center_mass[1])**2  <  radius[i]**2)
+            rmask = ((X-center[0])**2 + (Y-center[1])**2  <  radius[i]**2)
         # Sum of the Luminosity with radius
 
         sum_light[i] = np.sum(image[rmask] * kpc_per_pixel) 
