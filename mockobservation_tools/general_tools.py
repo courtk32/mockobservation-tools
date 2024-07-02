@@ -153,7 +153,7 @@ def measure_surfbright(
     major_axis=1,
     ellip=0, 
     theta=0,
-    center_mass_coords=None,
+    center_coords=None,
     center_light=False,
     nmeasure=100, 
     sb_lim=57650,
@@ -171,7 +171,7 @@ def measure_surfbright(
     FOV:         float, Field of View, physical distance from the center of 
                     the galaxy to the edge of the image, often in kpc
     pixel:       int, number of pixels across the image
-    center_mass: Stellar center of mass of the galaxy.
+    center_coords: Stellar center of mass of the galaxy.
                     Form of [xcm,ycm,zcm]. If None it assumes center of image [0,0,0] 
     center_light:True/False. Finds center of light and uses that to measure
     nmeasure:    integer Number of radii where the SB is measured 
@@ -202,17 +202,17 @@ def measure_surfbright(
     X, Y = np.meshgrid(x, y)
     
     
-    if center_mass_coords is None:
-        center = [0,0,0]
+    if center_coords is None:
+        center_coords = [0,0,0]
     if center_light is True:
-        center = center_mass(np.array([X.flatten(), Y.flatten()]).T, image.flatten())
+        center_coords = center_mass(np.array([X.flatten(), Y.flatten()]).T, image.flatten())
         
   
     if ellip > 0 :
         a, b = major_axis, (1 - ellip) * major_axis
         cos_theta, sin_theta = np.cos(theta), np.sin(theta)
-        X_rot = (X - center[0]) * cos_theta + (Y - center[1]) * sin_theta
-        Y_rot = -(X - center[0]) * sin_theta + (Y - center[1]) * cos_theta
+        X_rot = (X - center_coords[0]) * cos_theta + (Y - center_coords[1]) * sin_theta
+        Y_rot = -(X - center_coords[0]) * sin_theta + (Y - center_coords[1]) * cos_theta
         z = np.sqrt((X_rot / a) ** 2 + (Y_rot / b) ** 2)
     else:
         z = None
@@ -237,7 +237,7 @@ def measure_surfbright(
     
         else:
                      
-            rmask = ((X-center[0])**2 + (Y-center[1])**2  <  radius[i]**2)
+            rmask = ((X-center_coords[0])**2 + (Y-center_coords[1])**2  <  radius[i]**2)
         # Sum of the Luminosity with radius
 
         sum_light[i] = np.sum(image[rmask] * kpc_per_pixel) 
