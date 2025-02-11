@@ -267,7 +267,9 @@ def measure_surfmass(
     star_mass, 
     FOV, 
     centermass=True, 
-    nmeasure=100):
+    nmeasure=100,
+    return_type='none'):
+
     '''
     Calculates the azimuthally averaged surface mass (SM) at nmeasure different 
     radii equally spaced from the center of the galaxy to the FOV. 
@@ -296,14 +298,21 @@ def measure_surfmass(
     circle_area = np.zeros(len(radius))
     
     if centermass is True:
-        cm_coord = center_mass(np.transpose([star_coords[0],star_coords[1],star_coords[2]]), star_mass)    
+        cm_coord = center_mass(np.transpose([star_coords[0],star_coords[1],star_coords[2]]), star_mass)  
+    else:
+        cm_coord = [0,0,0]
     for i in range(len(radius)):
         # mask that grabs pixels within give physical radius
-        rmask = ((star_coords[0]-cm_coord[0])**2 + (star_coords[1]-cm_coord[1])**2  <  radius[i]**2)
+        rmask = ((star_coords[0]-cm_coord[0])**2 + (star_coords[1]-cm_coord[1])**2 + (star_coords[2]-cm_coord[2])**2 <  radius[i]**2)
         # Sum of the Luminosity with radius
         sum_mass[i] = np.sum(star_mass[rmask]) 
         # Area of within radius
         circle_area[i] = np.pi * radius[i]**2
+    
+    
+    if return_type == 'cum_mass':
+        return radius, sum_mass
+    
     
     # luminosity within annulus between radii
     mass_shell = sum_mass[1:]-sum_mass[:-1]
@@ -541,4 +550,36 @@ def re_from_mass(
 
 
 
+def movingAverageBounds(X,Y,nbins=10,bins_x=None, bound = 25):
+    
+    if bins_x is None:
+        bins_x = np.zeros(nbins+1)
+        for i in range(nbins+1):
 
+            bins_x[i] = np.percentile(X, 100/nbins * i)
+
+    x = np.mean([bins_x[1:], bins_x[:-1]], axis=0)
+    x[0] = bins_x[0]
+    x[-1] = bins_x[-1]
+    
+    
+    ymin = np.zeros(nbins)
+    ymax = np.zeros(nbins)
+    yave = np.zeros(nbins)
+    
+    
+    for i in range(nbins):
+        
+        mask = (X > bins_x[i]) & (X < bins_x[i+1])
+        
+        inbin = Y[mask]
+        
+        ymin[i] = np.percentile(inbin, 50 - bound)
+        yave[i] = np.percentile(inbin, 50)
+        ymax[i] = np.percentile(inbin, 50 + bound)
+
+    
+
+    return x, ymin, ymax, yave
+    
+    

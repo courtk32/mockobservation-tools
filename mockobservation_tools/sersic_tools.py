@@ -71,6 +71,42 @@ def sersic1D_forfit(
     return sersic_model(r)
 
 
+def sersic1Dfixedn4_forfit(
+    r,
+    amplitude,
+    r_eff,
+    n = 4):
+
+    '''
+    The Sersic1D creates a model for the given amp, r_eff, n
+    To fit model using curve_fit to data, 
+    the function needs a 1d array input (r)
+
+    Parameters
+    ----------
+    r:      array_like, radii to calculate Sersic value
+    kwargs: from Sersic1D
+
+    Returns
+    -------
+    Sersic Value at r: array_like, shape(r), same unit as amplitude
+
+    Example
+    -------
+    r = np.arange(0, 100, .01)
+    sersic_value = sersic_1D_forfit(r,amplitude,r_eff,n)
+    '''
+
+    sersic_model = Sersic1D(amplitude=amplitude, 
+                            r_eff=r_eff, 
+                            n=n)
+
+    return sersic_model(r)
+
+
+
+
+
 def sersic2D_forfit(
     mesh1D,
     amplitude,
@@ -164,22 +200,33 @@ def fit_sersic(
             p0 = [10**6,1,0.7]
 
     if sersic_type == 'sersic':
-        popt, pcov = curve_fit(sersic, r, sb, p0=p0)
+        popt, pcov = curve_fit(sersic, r, sb, p0=p0,
+                               bounds=((1e-4, 1e-4, 1e-4),
+                                       (np.inf, 100, 20)))
+                                       #(np.inf, np.inf, np.inf)))
         std = np.sqrt(np.diag(pcov))  
         
     if sersic_type == 'sersic1D':        
-        popt, pcov = curve_fit(sersic1D_forfit, r, sb, p0=p0)
+        popt, pcov = curve_fit(sersic1D_forfit, r, sb, p0=p0,
+                               bounds=((1e-4, 1e-4, 1e-4),
+                                       (np.inf, 100, 20)))
+                                       #(np.inf, np.inf, np.inf)))
+        std = np.sqrt(np.diag(pcov))  
+    
+    if sersic_type == 'sersic1D_fixedn4':        
+        popt, pcov = curve_fit(sersic1Dfixedn4_forfit, r, sb, p0=p0[:-1]) #save n=4 for 
         std = np.sqrt(np.diag(pcov))  
         
     if sersic_type == 'sersic2D':
         mid_pixel_FOV = FOV - FOV / pixel
-        x, y = np.linspace(-mid_pixel_FOV, mid_pixel_FOV, pixel), np.linspace(-mid_pixel_FOV, mid_pixel_FOV, pixel)
+        x, y = np.linspace(-mid_pixel_FOV, mid_pixel_FOV, pixel), np.linspace(mid_pixel_FOV, -mid_pixel_FOV, pixel)
         X, Y = np.meshgrid(x, y)
         mesh1D = np.vstack((X.ravel(), Y.ravel()))
 
         popt, pcov = curve_fit(sersic2D_forfit, mesh1D, image.ravel(), p0,
-                               bounds=((0, 0, 0, -np.inf, -np.inf, 0, -np.inf),
-                                       (np.inf, np.inf, np.inf, np.inf, np.inf, 1, np.inf)))
+                               bounds=((1e-4, 1e-4, 1e-4, -np.inf, -np.inf, 0, -np.inf),
+                                       (np.inf, 100, 20, np.inf, np.inf, 1, np.inf)))
+                                       #(np.inf, np.inf, np.inf, np.inf, np.inf, 1, np.inf)))
         # this makes the angle given to be between 0,pi 
         # I tried doing this in the bounds of curve_fit and it messed it up
         popt[6] = popt[6]%(np.pi) 
