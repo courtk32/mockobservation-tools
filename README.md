@@ -15,7 +15,7 @@ git clone https://github.com/courtk32/mockobservation-tools.git
 
 Nativage into each of your cloned directory run:
 
-pip instal .
+pip install .
 
 For any updates in the code, update your repo and then your must run: pip instal .
 
