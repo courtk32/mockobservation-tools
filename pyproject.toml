@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61", "setuptools_scm>=8", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mockobservation_tools"
+dynamic = ["version"]
+description = "Software tools for mock observations."
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "Courtney Klein", email = "kleinca@uci.edu"},
+]
+dependencies = [
+    "astropy",
+    "firestudio @ git+https://github.com/courtk32/FIRE_studio.git",
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "h5py",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/courtk32/mockobservation-tools"
+
+[tool.setuptools.packages.find]
+include = ["mockobservation_tools*"]
+
+[tool.setuptools_scm]

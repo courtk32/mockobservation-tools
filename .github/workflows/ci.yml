@@ -1,0 +1,33 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # setuptools_scm derives the version from tags, so fetch the
+          # full history instead of a shallow clone.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build the wheel under full build isolation
+        # A build-time import of the package (and its runtime deps) is
+        # the regression that dropping setup.py removed. This step fails
+        # if that import comes back.
+        run: |
+          python -m pip install --upgrade pip
+          pip wheel . --no-deps -w dist
+
+      - name: Check the version resolves from git
+        # importlib.metadata reads the version from the installed
+        # metadata without importing the package, so this step needs no
+        # runtime deps (numpy, firestudio, ...).
+        run: |
+          pip install --no-deps dist/*.whl
+          python -c "import importlib.metadata as m; v = m.version('mockobservation_tools'); print(v); assert v != '0.0.0', 'setuptools_scm did not resolve a version'"

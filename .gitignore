@@ -1,0 +1,19 @@
+#ignore python compile files
+*.pyc
+
+#ignore backup files
+*.bak
+
+#ignore hidden files, but keep this gitignore and CI config tracked
+.*
+!.gitignore
+!.github/
+
+#ignore data folder
+#data/*
+
+__pycache__
+
+#ignore build artifacts
+build/
+*.egg-info/
